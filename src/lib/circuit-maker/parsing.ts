@@ -3,9 +3,9 @@ import { isCircuitName, isDefaultCircuit as isDefaultCircuitType, matchCircuitNa
 
 export interface ParsedText {
   readonly definitions: CircuitSchema[]
-  readonly visible: string[]
+  readonly views: string[]
   readonly runners: {
-    readonly name: string,
+    readonly type: string,
     readonly inputs: number[][]
   }[]
   readonly result: ParsingResult
@@ -28,14 +28,14 @@ interface TemporaryDefinition {
 }
 
 export interface TemporaryRunner {
-  readonly name: string
+  readonly type: string
   inputs: number[][]
 }
 
 interface ParseState {
   definitions: TemporaryDefinition[]
   runners: TemporaryRunner[]
-  visible: string[]
+  views: string[]
   blockFunction: BlockFunction
 }
 
@@ -46,8 +46,8 @@ interface BlockFunction {
 export default function parse(text: string): ParsedText {  
   const state : ParseState = {
     definitions: new Array<TemporaryDefinition>(),
+    views: new Array<string>(),
     runners: new Array<TemporaryRunner>(),
-    visible: new Array<string>(),
     blockFunction: parseDefaultBlock
   }
   
@@ -66,7 +66,7 @@ export default function parse(text: string): ParsedText {
   return { 
     definitions: state.definitions,
     runners: state.runners,
-    visible: state.visible, 
+    views: state.views, 
     result: result ? result : { success: true }}
 }
 
@@ -89,14 +89,15 @@ function parseDefaultBlock(state: ParseState, line: string, words: string[]) {
       if (words.length < 2) throw new Error('Missing circuit name')
       const circuitType = words[1]
       if (!isDefaultCircuitType(circuitType) && !state.definitions.some((schema) => schema.type === circuitType)) throw new Error('Unknown circuit type')
-      state.visible.push(circuitType)
+      state.views.push(circuitType)
       break
     case 'run':
       if (words.length < 2) throw new Error('Missing circuit name')
       const tempRunner : TemporaryRunner = {
-        name: words[1],
+        type: words[1],
         inputs: []
       }
+      if (!state.views.includes(words[1])) state.views.push(words[1])
       state.runners.push(tempRunner)
       state.blockFunction = parseRunBlock
       break

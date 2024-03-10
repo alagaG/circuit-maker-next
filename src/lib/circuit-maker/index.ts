@@ -1,20 +1,29 @@
-import Board, { OrderTreeNode as OrderTreeNode } from "./circuit"
+import Board, { OrderGraph, OrderNode as OrderNode } from "./circuit"
 import parse, { ParsedText, ParsingResult, TemporaryRunner } from "./parsing"
 
-export interface VisibleStructure {
-  orderTree: OrderTreeNode[]
-  runnersResults: { runner: number[], result:number[] }[]
+export interface BoardView {
+  views: View[]
+  runners: RunnerResult[]
+}
+
+export interface View {
+  type: string
+  order: OrderGraph
+}
+
+export interface RunnerResult {
+  type: string
+  input: number[]
+  output: number[]
 }
 
 export default class BoardManager {
   private board: Board
-  private parsedText: ParsedText 
-  private visible: string[]
+  private parsedText: ParsedText
 
   constructor() {
     this.board = Board.createFromList([])
-    this.parsedText = { definitions: [], runners: [], visible: [], result: { success: true } }
-    this.visible = []
+    this.parsedText = { definitions: [], runners: [], views: [], result: { success: false } }
   }
 
   parse(text: string): ParsingResult {
@@ -27,16 +36,24 @@ export default class BoardManager {
     return parsed.result
   }
 
-  getView(): VisibleStructure[] {
-    const { runners } = this.parsedText
-    let runnersResults : { runner: number[], result:number[] }[] = []
-    runners.forEach((runner) => {
-      runnersResults = this.board.runMultiple(runner.name, runner.inputs)
-        .map((result, index) => { return { runner:runner.inputs[index], result } })
-    })
-    console.log(runnersResults)
+  getView(): BoardView {
+    if (!this.parsedText.result.success) return { views: [], runners: [] }
+    const { views: visible, runners } = this.parsedText
 
-    return [ { orderTree: [], runnersResults } ]
+    let tempRunners : RunnerResult[] = []
+    runners.forEach((runner) => {
+      const { type, inputs } = runner
+      tempRunners = this.board.runMultiple(type, inputs)
+        .map((result, index) => { return { type, input: inputs[index], output:result } })
+    })
+
+    const tempViews = visible
+      .map((circuitType) => { return { 
+        type: circuitType, 
+        order: this.board.getOrderGraph(circuitType)
+      } })
+
+    return { views: tempViews, runners: tempRunners }
   }
 
 }

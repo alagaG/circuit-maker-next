@@ -1,9 +1,14 @@
 import { Context } from "konva/lib/Context";
 import { Shape, ShapeConfig } from "konva/lib/Shape";
-import { Circuit, LogicGate, SimpleCircuit, circuitBuffer, circuitNAND, circuitNOR, circuitNOT, circuitXNOR, inputCircuit, logicGateAND, logicGateBuffer, logicGateNAND, logicGateNOR, logicGateNOT, logicGateOR, logicGateXNOR, logicGateXOR, outputCircuit } from "./circuit";
+import { Circuit, LogicGate, SimpleCircuit, circuitBuffer, circuitInput, circuitNAND, circuitNOR, circuitNOT, circuitOutput, circuitXNOR, inputCircuit, logicGateAND, logicGateBuffer, logicGateNAND, logicGateNOR, logicGateNOT, logicGateOR, logicGateXNOR, logicGateXOR, outputCircuit } from "./circuit";
+import { isNegativeLogicGateType } from "./utils";
 
 const ioWidthPercent = 0.2
 const bodyWidthPercent = 0.6
+
+interface CircuitDrawFunction {
+  (context: Context, shape: Shape<ShapeConfig>, negate: boolean): void
+}
 
 interface IORect {
   width: number
@@ -35,7 +40,7 @@ function drawInterface(context: Context, shape: Shape<ShapeConfig>, rect: IORect
       context.moveTo(outputBeginning, bodyYMiddle)
       context.lineTo(outputBeginning + ioHalfWidth, bodyYMiddle)
   }
-  context.fillStrokeShape(shape)
+  context.strokeShape(shape)
 }
 
 export function drawIO(context: Context, shape: Shape<ShapeConfig>, negate: boolean = false) {
@@ -45,7 +50,15 @@ export function drawIO(context: Context, shape: Shape<ShapeConfig>, negate: bool
   const bodyY = 0
   const bodyWidth = width * bodyWidthPercent
   const bodyHeight = height
-  context.rect(bodyX, bodyY, bodyWidth, bodyHeight)
+
+  const bodyRectXEnd = bodyX + bodyWidth
+  const bodyRectYEnd = bodyY + bodyHeight
+  context.beginPath()
+  context.moveTo(bodyX, bodyY)
+  context.lineTo(bodyX, bodyRectYEnd)
+  context.lineTo(bodyRectXEnd, bodyRectYEnd)
+  context.lineTo(bodyRectXEnd, bodyY)
+  context.closePath()
   context.fillStrokeShape(shape)
 
   drawInterface(context, shape, { width, height }, negate ? 'INPUT' : 'OUTPUT')
@@ -168,24 +181,35 @@ export function drawXOR(context: Context, shape: Shape<ShapeConfig>, negate: boo
   drawInterface(context, shape, { width, height }, negate ? 'NOT_OUTPUT' : 'OUTPUT')
 }
 
-export function drawGate(circuit: Circuit, context: Context, shape: Shape<ShapeConfig>) {
-  switch (circuit.getType()) {
-    case inputCircuit.getType(), outputCircuit.getType():
-      drawIO(context, shape, outputCircuit.hasSameType(circuit))
+export function drawGate(circuit: Circuit|string, context: Context, shape: Shape<ShapeConfig>) {
+  const type = circuit instanceof Circuit ? circuit.getType() : circuit
+  const negate = isNegativeLogicGateType(type)
+
+  let drawFunction : CircuitDrawFunction|undefined = undefined
+  switch (type) {
+    case circuitInput.getType():
+    case circuitOutput.getType():
+      drawFunction = drawIO
       break
-    case logicGateBuffer.type, logicGateNOT.type:
-      drawBuffer(context, shape, circuitNOT.hasSameType(circuit))
+    case logicGateBuffer.type:
+    case logicGateNOT.type:
+      drawFunction = drawBuffer
       break
-    case logicGateOR.type, logicGateNOR.type:
-      drawOR(context, shape, circuitNOR.hasSameType(circuit))
+    case logicGateOR.type:
+    case logicGateNOR.type:
+      drawFunction = drawOR
       break
-    case logicGateAND.type, logicGateNAND.type:
-      drawAND(context, shape, circuitNAND.hasSameType(circuit))
+    case logicGateAND.type:
+    case logicGateNAND.type:
+      drawFunction = drawAND
       break
-    case logicGateXOR.type, logicGateXNOR.type:
-      drawXOR(context, shape, circuitXNOR.hasSameType(circuit))
+    case logicGateXOR.type:
+    case logicGateXNOR.type:
+      drawFunction = drawXOR
       break
   }
+
+  if (drawFunction !== undefined) drawFunction(context, shape, negate)
 }
 
 export interface ShapeRect {

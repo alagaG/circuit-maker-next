@@ -32,7 +32,7 @@ export abstract class Circuit {
 
 	abstract execute(options?: ExecutionOptions) : void
 
-	abstract getOrderTree(): OrderTreeNode[]
+	abstract getOrderGraph(): OrderGraph
 
 	abstract getInputSize(): number
 
@@ -125,14 +125,13 @@ export class IOCircuit extends Circuit {
 		this.executed = inExecuted
 	}
 
-	getOrderTree(): OrderTreeNode[] {
-		return [ { 
-			instance: {
-				id: this.id,
-				index: this.index,
-				type: this.getType()
-			}
-		} ]
+	getOrderGraph(): OrderGraph {
+    const selfNode = { id: this.id, index: this.index, type: this.getType() }
+		return { 
+      depth: 1,
+      inputs: [ selfNode ],
+      outputs: [ selfNode ]
+		}
 	}
 
 	hasSameType(other: Circuit): boolean {
@@ -187,6 +186,9 @@ export interface LogicGate {
 	readonly process: LogicGateFunction
 }
 
+export const logicGateInput : LogicGate = { type: "Input", inputSize: 1, process: logicBuffer }
+export const logicGateOutput : LogicGate = { type: "Output", inputSize: 1, process: logicBuffer }
+
 export const logicGateBuffer : LogicGate = { type: "Buffer", inputSize: 1, process: logicBuffer }
 export const logicGateNOT : LogicGate = { type: "NOT", inputSize: 1, process: logicNOT }
 export const logicGateAND : LogicGate = { type: "AND", inputSize: 2, process: logicAND }
@@ -220,13 +222,13 @@ export class SimpleCircuit extends Circuit {
 		if (this.executed && steps) console.log(`${this.getType()} | (${this.processInput.map(i => Number(i().value))}) > (${this.getOutputs().map(o => Number(o.value))})`)
 	}
 
-	getOrderTree(): OrderTreeNode[] {
-		return [ { 
-			instance: {
-			id: this.id,
-			index: this.index,
-			type: this.getType()
-		} } ]
+	getOrderGraph(): OrderGraph {
+    const selfNode = { id: this.id, index: this.index, type: this.getType() }
+		return { 
+      depth: 1,
+      inputs: [ selfNode ],
+      outputs: [ selfNode ]
+		}
 	}
 
 	hasSameType(other: Circuit): boolean {
@@ -255,6 +257,9 @@ export class SimpleCircuit extends Circuit {
 
 }
 
+export const circuitInput = new SimpleCircuit(logicGateInput)
+export const circuitOutput = new SimpleCircuit(logicGateOutput)
+
 export const circuitBuffer = new SimpleCircuit(logicGateBuffer)
 export const circuitNOT = new SimpleCircuit(logicGateNOT)
 export const circuitAND = new SimpleCircuit(logicGateAND)
@@ -263,7 +268,9 @@ export const circuitOR = new SimpleCircuit(logicGateOR)
 export const circuitNOR = new SimpleCircuit(logicGateNOR)
 export const circuitXOR = new SimpleCircuit(logicGateXOR)
 export const circuitXNOR = new SimpleCircuit(logicGateXNOR)
+
 export const defaultCircuits = [
+  circuitInput, circuitOutput,
   circuitBuffer, circuitNOT, circuitAND, circuitNAND,
   circuitOR, circuitNOR, circuitXOR, circuitXNOR
 ]
@@ -275,7 +282,8 @@ export default class Board {
 
 	constructor(builders: Map<string, CircuitSchema>) {
 		this.builders = builders
-		this.simpleCircuitsList = new Map<string, SimpleCircuit>(defaultCircuits.map((circuit) => [ circuit.getGate().type, circuit ]))
+		this.simpleCircuitsList = new Map<string, SimpleCircuit>(defaultCircuits
+      .map((circuit) => [ circuit.getGate().type, circuit ]))
         
 		this.complexCircuitsList = new Map()
 		builders.forEach((schema) => {
@@ -296,11 +304,17 @@ export default class Board {
 		return inputs.map((input) => this.run(id, input, options))
 	}
 
-	getOrderTree(id: string): OrderTreeNode[] {
-		const circuit = this.getCircuitCopy(id)
+	getOrderGraph(id: string): OrderGraph {
+		const circuit = this.getCircuit(id)
 		if (circuit === undefined) throw new Error("Circuit not found") 
-		return circuit.getOrderTree()
+		return circuit.getOrderGraph()
 	}
+
+  private getCircuit(id: string): Circuit|undefined {
+    const circuitMap = this.simpleCircuitsList.has(id) ? this.simpleCircuitsList : this.complexCircuitsList
+		if (circuitMap.has(id)) return circuitMap.get(id)!
+		return undefined
+  }
 
 	getCircuitCopy(id: string): Circuit|undefined {
 		const circuitMap = this.simpleCircuitsList.has(id) ? this.simpleCircuitsList : this.complexCircuitsList
@@ -343,15 +357,20 @@ export interface ICircuitStructure {
 	readonly references: Connection[]
 }
 
-export interface OrderTreeNode {
-	readonly instance: {
-		index: number,
-		id: number,
-		type: string
-	},
+export interface OrderGraph {
+  readonly depth: number
+  readonly inputs: OrderNode[]
+  readonly outputs: OrderNode[]
+}
+
+export interface OrderNode {
+  readonly type: string
+  readonly index: number
+  readonly id: number
+  gateValue?: number
 	readonly previous?: {
 		readonly port: number
-		readonly node: OrderTreeNode
+		readonly node: OrderNode
 	}[]
 }
 
@@ -387,18 +406,6 @@ export class ComplexCircuit extends Circuit {
 			tempCircuits.set(inputName, instanceList)
 		}
 
-		for(let idx=0; idx < outputSize; idx++) {
-			const instance = this.createOutput()
-			instance.index = idx
-			this.processOutput[idx] = instance.getOutput()
-			tempInstances.push(instance)
-			
-      const outputName = outputCircuit.getType()
-			let instanceList = (tempCircuits.has(outputName)) ? tempCircuits.get(outputName)! : new Array<Circuit>()
-			instanceList.push(instance)
-			tempCircuits.set(outputName, instanceList)
-		}
-
 		instancesName.forEach((id) => {
 			const circuit = this.board.getCircuitCopy(id)
 			if (circuit === undefined) throw new Error("Circuit not found")
@@ -410,6 +417,18 @@ export class ComplexCircuit extends Circuit {
       instanceList.push(circuit)
 			tempCircuits.set(id, instanceList)
 		})
+
+    for(let idx=0; idx < outputSize; idx++) {
+			const instance = this.createOutput()
+			instance.index = idx
+			this.processOutput[idx] = instance.getOutput()
+			tempInstances.push(instance)
+			
+      const outputName = outputCircuit.getType()
+			let instanceList = (tempCircuits.has(outputName)) ? tempCircuits.get(outputName)! : new Array<Circuit>()
+			instanceList.push(instance)
+			tempCircuits.set(outputName, instanceList)
+		}
 
     tempInstances.forEach((circuit, index) => {
 			circuit.id = index
@@ -454,11 +473,12 @@ export class ComplexCircuit extends Circuit {
 			inputs[index].setInput(0, input)
 		})
 
-		const orderRoot = this.getOrderTree()
-		const executionRecursion = function(node: OrderTreeNode, instances: Circuit[]) {
+		const orderRoot = this.getOrderGraph().outputs
+		const executionRecursion = function(node: OrderNode, instances: Circuit[]) {
 			if (node.previous) node.previous.forEach((n) => executionRecursion(n.node, instances))
-			const instance = instances[node.instance.id]
+			const instance = instances[node.id]
 			instance.execute()
+      node.gateValue = Number(instance.getOutput().value)
 		}
 		orderRoot.forEach((n) => executionRecursion(n, this.getInstances()))
 
@@ -472,28 +492,45 @@ export class ComplexCircuit extends Circuit {
 		return other instanceof ComplexCircuit && this.structure.builderId === other.structure.builderId
 	}
 
-	getOrderTree(): OrderTreeNode[] {
+	getOrderGraph(): OrderGraph {
 		const baseInstances = this.getInstances().filter((circuit) => circuit.hasSameType(outputCircuit))
-		
-		const treeBuilderRecursion = (current: Circuit) : OrderTreeNode => {
+
+    const graphRecursion = (current: Circuit, inputs: OrderNode[] = [], depth: number = 1) : { depth: number, inputs: OrderNode[], node: OrderNode } => {
       const references = this.getReferences().filter((reference) => {
         const inputInstance = this.getCircuits().get(reference.input.type)![reference.input.index]
         return inputInstance === current
-      }) 
-			return {
-				instance: {
-					id: current.id,
-					index: current.index,
-					type: current.getType()
-				},
-				previous: references.map((reference) => { return {
-					port: reference.input.port,
-					node: treeBuilderRecursion(this.getCircuits().get(reference.output.type)![reference.output.index])} 
-				})
-			}
-		}
+      })
 
-		return baseInstances.map((instance) => treeBuilderRecursion(instance))
+      const nextDepth = depth + 1
+      const node : OrderNode = {
+        id: current.id,
+        index: current.index,
+        type: current.getType(),
+				previous: references.map((reference) => { 
+          const recursion = graphRecursion(this.getCircuits().get(reference.output.type)![reference.output.index], inputs, nextDepth)
+          depth = recursion.depth
+          return {
+            port: reference.input.port,
+            node: recursion.node
+          }
+        })
+      }
+      
+      if ( current.hasSameType(inputCircuit)) inputs.push(node)
+			return { depth, inputs, node }
+		}
+    
+    const recursionResult = baseInstances.map((instance) => graphRecursion(instance))
+    const inputs = Array.from(new Map<number, OrderNode>(recursionResult
+        .map( (result): [ number, OrderNode ][] => result.inputs.map( (node): [ number, OrderNode ] => [node.index, node] ) ).flat()
+      ).values()
+    )
+
+		return {
+      depth: recursionResult.map((result) => result.depth).reduce((a, b) => Math.max(a, b)),
+      inputs: inputs,
+      outputs: recursionResult.map((result) => result.node)
+    }
 	}
 
 	isReady(): boolean {

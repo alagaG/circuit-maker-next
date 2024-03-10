@@ -1,22 +1,60 @@
-import { CircuitIOCredential, OrderTreeNode, defaultCircuits } from "./circuit"
+import { Circuit, CircuitIOCredential, LogicGate, OrderGraph, OrderNode, circuitAND, circuitBuffer, circuitInput, circuitNAND, circuitNOR, circuitNOT, circuitOR, circuitOutput, circuitXNOR, circuitXOR, defaultCircuits, logicGateAND, logicGateBuffer, logicGateInput, logicGateNAND, logicGateNOR, logicGateNOT, logicGateOR, logicGateOutput, logicGateXNOR, logicGateXOR } from "./circuit"
 
-export function printOrderTree(treeRoot: OrderTreeNode[]) {
-	let queue : OrderTreeNode[][] = []
-	let next : OrderTreeNode[] = []
-	console.log(">", treeRoot.map(n => `${n.instance.type}#${n.instance.index}`))
+export const positiveLogicGates = [
+  logicGateInput, logicGateBuffer, logicGateAND, logicGateOR, logicGateXOR
+]
+export const negativeLogicGates = [
+  logicGateOutput, logicGateNOT, logicGateNAND, logicGateNOR, logicGateXNOR
+]
+
+export const positiveCircuits = [
+  circuitInput, circuitBuffer, circuitAND, circuitOR, circuitXOR
+]
+export const negativeCircuits = [
+  circuitOutput, circuitNOT, circuitNAND, circuitNOR, circuitXNOR
+]
+
+export function printOrderTree(treeRoot: OrderNode[]) {
+	let queue : OrderNode[][] = []
+	let next : OrderNode[] = []
+	console.log(">", treeRoot.map(n => `${n.type}#${n.index}`))
 	treeRoot.forEach((n) => {
 		if (n.previous) next.push(...n.previous.map(n => n.node))
 	})
 	queue.push(next)
 	while(queue.length > 0) {
 		const current = queue.shift()!
-		console.log(">", current.map(n => `${n.instance.type}#${n.instance.index}`))
+		console.log(">", current.map(n => `${n.type}#${n.index}`))
 		next = []
 		current.forEach((n) => {
 			if (n.previous) next.push(...n.previous.map(n => n.node))
 		})
 		if (next.length > 0) queue.push(next)
 	}
+}
+
+export function isInput(type: string): boolean {
+  return circuitInput.getType() === type
+}
+
+export function isOutput(type: string): boolean {
+  return circuitOutput.getType() === type
+}
+
+export function isIO(type: string): boolean {
+  return isInput(type) || isOutput(type)
+}
+
+export function isNegativeLogicGateType(type: string): boolean {
+  return !positiveLogicGates.some((gate) => gate.type === type)
+}
+
+export function isNegativeLogicGate(logicGate: LogicGate): boolean {
+  return !positiveLogicGates.some((gate) => gate.type === logicGate.type)
+}
+
+export function isNegativeCircuit(circuit: Circuit): boolean {
+  return !positiveCircuits.some((positiveCircuit) => positiveCircuit.hasSameType(circuit))
 }
 
 const circuitNameRegex = /(\w+)#(\d)(?:-(\d))?/
