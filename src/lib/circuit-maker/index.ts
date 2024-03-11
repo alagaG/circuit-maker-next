@@ -1,5 +1,6 @@
-import Board, { OrderGraph, OrderNode as OrderNode } from "./circuit"
+import Board, { ComplexCircuit, OrderGraph, OrderNode as OrderNode } from "./circuit"
 import parse, { ParsedText, ParsingResult, TemporaryRunner } from "./parsing"
+import { isSimpleType } from "./utils"
 
 export interface BoardView {
   views: View[]
@@ -8,8 +9,15 @@ export interface BoardView {
 
 export interface View {
   type: string
+  custom?: DrawScheme[] 
   order: OrderGraph
 }
+
+export interface DrawScheme {
+  readonly type: string
+  readonly input: number
+  readonly output: number
+} 
 
 export interface RunnerResult {
   type: string
@@ -48,10 +56,23 @@ export default class BoardManager {
     })
 
     const tempViews = visible
-      .map((circuitType) => { return { 
-        type: circuitType, 
-        order: this.board.getOrderGraph(circuitType)
-      } })
+      .map((circuitType) => { 
+        const schema = this.board.getCircuitSchema(circuitType) 
+        const custom = Array.from(new Set(schema.instances.filter((instance) => !isSimpleType(instance))))
+          .map((subCircuit): DrawScheme => {
+            const subSchema = this.board.getCircuitSchema(subCircuit)
+            return {
+              type: subCircuit,
+              input: subSchema.inputSize,
+              output: subSchema.outputSize
+            }
+          })
+        return { 
+          type: circuitType, 
+          custom,
+          order: this.board.getOrderGraph(circuitType)
+        } 
+      })
 
     return { views: tempViews, runners: tempRunners }
   }

@@ -1,6 +1,7 @@
 'use client'
 
-import { ShapeRect, drawConnection, drawGate } from "@/lib/circuit-maker/drawing";
+import { DrawScheme } from "@/lib/circuit-maker";
+import { ShapeRect, drawConnection, drawCircuit } from "@/lib/circuit-maker/drawing";
 import BoardStyle from "@/utils/board_style";
 import { ShapeConfig } from "konva/lib/Shape";
 import { Group, Shape, Text } from "react-konva";
@@ -9,10 +10,11 @@ interface CircuitProps extends ShapeConfig {
   circuit: string
   style: BoardStyle
   ioValue?: boolean
+  scheme?: DrawScheme
 }
 
 export default function CircuitShape(props: CircuitProps) {
-  const { circuit, stroke, ioValue: ioValue } = props
+  const { circuit, stroke, ioValue: ioValue, scheme } = props
   const x = props.x ? props.x : 0
   const y = props.y ? props.y : 0
   const width = props.width ? props.width : 0
@@ -23,7 +25,7 @@ export default function CircuitShape(props: CircuitProps) {
       <Shape 
         { ...props }
         strokeWidth={ 2.5 }
-        sceneFunc={ (ctx, shape) => { drawGate(circuit, ctx, shape) } }
+        sceneFunc={ (ctx, shape) => { drawCircuit(circuit, ctx, shape, scheme) } }
       />
       {
         ioValue !== undefined ? 

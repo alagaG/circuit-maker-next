@@ -21,11 +21,11 @@ export interface CircuitViewBoard {
   runner?: RunnerResult
 }
 
-const horizontalPadding = 16
-const verticalPadding = 20
-const barHeight = verticalPadding
+const innerHorizontalMargin = 16
+const innerVerticalMargin = 20
+const barHeight = innerVerticalMargin
 const barVerticalPadding = 2
-const barHorizontalPadding = horizontalPadding / 2
+const barHorizontalPadding = innerHorizontalMargin / 2
 
 export default function BoardShape({ boardView, style, x=0, y=0 }: CircuitViewProps) {
   const [ selfStyle, setSelfStyle ] = useState(BoardStyle.from(style))
@@ -94,15 +94,25 @@ export default function BoardShape({ boardView, style, x=0, y=0 }: CircuitViewPr
     currentLayer.push(node)
   })
 
+  const layersLength = layers.length
   const widerLayer = layers.reduce((last, layer) => layer.length > last.length ? layer : last)
+  const widerLayerLength = widerLayer.length 
 
-  const innerWidth = layers.length * (circuitWidth + circuitHorizontalGap) - circuitHorizontalGap
-  const innerHeight = widerLayer.length * (circuitHeight + circuitVerticalGap) - circuitVerticalGap
-  const width = innerWidth + horizontalPadding * 2
-  const height = innerHeight + verticalPadding * 2 + barHeight
+  const layersWidth = layersLength * (circuitWidth + circuitHorizontalGap) - circuitHorizontalGap
+  const layersHeight = widerLayerLength * (circuitHeight + circuitVerticalGap) - circuitVerticalGap
+  const innerWidth = layersWidth + gridCellSize - (layersWidth % gridCellSize)
+  const innerHeight = layersHeight + gridCellSize - (layersHeight % gridCellSize)
+  const layersLeftWidth = innerWidth - layersWidth
+
+  const horizontalPadding = innerHorizontalMargin * 2
+  const verticalPadding = innerVerticalMargin * 2 + barHeight
+  const fixedHorizontalPadding = horizontalPadding + gridCellSize - (horizontalPadding % gridCellSize)
+  const fixedVerticalPadding = verticalPadding + gridCellSize - (verticalPadding % gridCellSize)
+  const width = innerWidth + fixedHorizontalPadding
+  const height = innerHeight + fixedVerticalPadding
 
   const styleButtonsRadius = (barHeight - barVerticalPadding * 3) / 2
-  const styleButtonsWidth = (styleButtonsRadius + barHorizontalPadding) * 3 + horizontalPadding + barHorizontalPadding
+  const styleButtonsWidth = (styleButtonsRadius + barHorizontalPadding) * 3 + innerHorizontalMargin + barHorizontalPadding
 
   const onColorRectClick = () => setSelfStyle(selfStyle.nextColor())
   const onModeRectClick = () => setSelfStyle(selfStyle.nextMode())
@@ -124,13 +134,17 @@ export default function BoardShape({ boardView, style, x=0, y=0 }: CircuitViewPr
         shadowOpacity={ 0.25 }
         cornerRadius={10}/>
       <Group
-        x={horizontalPadding}
-        y={verticalPadding + barHeight}>
+        x={(fixedHorizontalPadding + layersLeftWidth) / 2}
+        y={fixedVerticalPadding}>
         {
           layers.map((layer, layerIndex) => {
+            const layerLength = layer.length
+            const gapCount = layerLength - 1
+            const layerHeight = (layerLength * circuitHeight) + (gapCount * circuitVerticalGap)
+            const leftHeight = innerHeight - layerHeight - barHeight / 2
             return layer.map((node, nodeIndex) => {
-              const leftHeight = (circuitHeight + circuitVerticalGap / layer.length) - (circuitHeight + circuitVerticalGap * (layer.length - 1))
-              const y = (innerHeight / (layer.length + 1)) * (nodeIndex + 1) + leftHeight + (circuitVerticalGap * (nodeIndex - 1))
+              const x = layerIndex * (circuitWidth + circuitHorizontalGap)
+              const y = (circuitHeight * nodeIndex) + (circuitVerticalGap * (nodeIndex - 1)) + (leftHeight / 2)
               const ioValue = isIO(node.type) ? Boolean(isInput(node.type) ? runner?.input[node.index] : runner?.output[node.index]) : undefined
               const colorScheme = selfStyle.getColorScheme()
               return (
@@ -138,7 +152,7 @@ export default function BoardShape({ boardView, style, x=0, y=0 }: CircuitViewPr
                 key={ node.id } 
                 circuit={ node.type } 
                 style={ selfStyle }
-                x = { layerIndex * (circuitWidth + circuitHorizontalGap) }
+                x = { x }
                 y = { y }
                 width={circuitWidth}
                 height={circuitHeight}
@@ -146,6 +160,7 @@ export default function BoardShape({ boardView, style, x=0, y=0 }: CircuitViewPr
                 stroke={colorScheme.stroke}
                 strokeWidth={2}
                 ioValue={ioValue}
+                scheme={view.custom?.filter((custom) => custom.type === node.type).shift()}
                 />
               )
             })
@@ -176,7 +191,7 @@ export default function BoardShape({ boardView, style, x=0, y=0 }: CircuitViewPr
           cornerRadius={[ 10, 10, 0, 0 ]}
         />
         <Group
-          x={ horizontalPadding }
+          x={ innerHorizontalMargin }
           y={ 0 }>
           <Circle 
             x={ styleButtonsRadius }
@@ -211,7 +226,7 @@ export default function BoardShape({ boardView, style, x=0, y=0 }: CircuitViewPr
         <Text 
           text={`${type}${runner ? ` : ${runner.input}` : ''}`} 
           x={ styleButtonsWidth }
-          y={ (verticalPadding) / 2 - 4 }
+          y={ (innerVerticalMargin) / 2 - 4 }
           fill={selfStyle.isLight() ? selfStyle.getBackground() : selfStyle.getBackgroundContrast() }
           fontStyle="bold"/>
       </Group>

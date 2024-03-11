@@ -1,3 +1,13 @@
+define Nand
+io 2 1
+add AND
+add NOT
+connect Input#0 > AND#0-0
+connect Input#1 > AND#0-1
+connect AND#0 > NOT#0
+connect NOT#0 > Output#0
+end
+
 define HalfSum
 io 2 2
 add XOR
@@ -10,25 +20,19 @@ connect XOR#0 > Output#0
 connect AND#0 > Output#1
 end
 
-run HalfSum
-[ 0 1 ]
-[ 1 1 ]
-[ 0 0 ]
-end
-
 define Xor
 io 3 1
 add OR
-add NAND
+add Nand
 add AND
 add NOR
 connect Input#0 > OR#0-0
 connect Input#1 > OR#0-1
-connect Input#0 > NAND#0-0
-connect Input#1 > NAND#0-1
+connect Input#0 > Nand#0-0
+connect Input#1 > Nand#0-1
 connect Input#2 > NOR#0-0
 connect OR#0 > AND#0-0
-connect NAND#0 > AND#0-0
+connect Nand#0 > AND#0-0
 connect AND#0 > NOR#0-1
 connect NOR#0 > Output#0
 end

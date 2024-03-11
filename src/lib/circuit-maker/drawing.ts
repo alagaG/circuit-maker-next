@@ -2,6 +2,7 @@ import { Context } from "konva/lib/Context";
 import { Shape, ShapeConfig } from "konva/lib/Shape";
 import { Circuit, LogicGate, SimpleCircuit, circuitBuffer, circuitInput, circuitNAND, circuitNOR, circuitNOT, circuitOutput, circuitXNOR, inputCircuit, logicGateAND, logicGateBuffer, logicGateNAND, logicGateNOR, logicGateNOT, logicGateOR, logicGateXNOR, logicGateXOR, outputCircuit } from "./circuit";
 import { isNegativeLogicGateType } from "./utils";
+import { DrawScheme } from ".";
 
 const ioWidthPercent = 0.2
 const bodyWidthPercent = 0.6
@@ -181,8 +182,39 @@ export function drawXOR(context: Context, shape: Shape<ShapeConfig>, negate: boo
   drawInterface(context, shape, { width, height }, negate ? 'NOT_OUTPUT' : 'OUTPUT')
 }
 
-export function drawGate(circuit: Circuit|string, context: Context, shape: Shape<ShapeConfig>) {
-  const type = circuit instanceof Circuit ? circuit.getType() : circuit
+export function drawComplex(context: Context, shape: Shape<ShapeConfig>, scheme: DrawScheme) {
+  const { width, height } = shape.getSelfRect() 
+
+  const bodyX = width * ioWidthPercent
+  const bodyY = 0
+  const bodyWidth = width * bodyWidthPercent
+  const bodyHeight = height
+
+  const bodyRectXEnd = bodyX + bodyWidth
+  const bodyRectYEnd = bodyY + bodyHeight
+  context.beginPath()
+  context.moveTo(bodyX, bodyY)
+  context.lineTo(bodyX, bodyRectYEnd)
+  context.lineTo(bodyRectXEnd, bodyRectYEnd)
+  context.lineTo(bodyRectXEnd, bodyY)
+  context.closePath()
+  context.fillStrokeShape(shape)
+
+  const { input, output } = scheme
+  const inputHeight = height / input
+  for(let i=0; i<input; i++) {
+    drawInterface(context, shape, { width, height: inputHeight * (1 + i * input) }, 'INPUT')
+  }
+
+  for(let i=1; i<=output; i++) {
+    drawInterface(context, shape, { width, height: inputHeight * (1 + i * output) }, 'OUTPUT')
+  }
+}
+
+export function drawCircuit(circuit: Circuit|string, context: Context, shape: Shape<ShapeConfig>, scheme?: DrawScheme) {
+  if (scheme) return drawComplex(context, shape, scheme)
+
+  const type = circuit instanceof Circuit ? circuit.getType() : circuit as string
   const negate = isNegativeLogicGateType(type)
 
   let drawFunction : CircuitDrawFunction|undefined = undefined

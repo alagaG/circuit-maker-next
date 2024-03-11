@@ -57,6 +57,10 @@ export function isNegativeCircuit(circuit: Circuit): boolean {
   return !positiveCircuits.some((positiveCircuit) => positiveCircuit.hasSameType(circuit))
 }
 
+export function isSimpleType(type: string): boolean {
+  return defaultCircuits.some((circuit) => circuit.getType() === type)
+}
+
 const circuitNameRegex = /(\w+)#(\d)(?:-(\d))?/
 export function matchCircuitName(name:string): RegExpMatchArray|null {
   return name.match(circuitNameRegex)
