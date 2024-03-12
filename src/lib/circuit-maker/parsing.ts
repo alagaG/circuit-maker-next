@@ -40,7 +40,7 @@ interface ParseState {
 }
 
 interface BlockFunction {
-  (state: ParseState, line: string, words: string[]): void
+  (state: ParseState, lineIndex: number, line: string, words: string[]): void
 }
 
 export default function parse(text: string): ParsedText {  
@@ -51,16 +51,18 @@ export default function parse(text: string): ParsedText {
     blockFunction: parseDefaultBlock
   }
   
-  const lines = text.split('\n').filter((line) => line.length > 0)
+  const lines = text.replaceAll(/\n\n/g, '\n \n').split(/\n/).filter((line) => line.length > 0)
   let result : ParsingResult|undefined = undefined
-  lines.forEach((line) => {
+  lines.forEach((line, index) => {
     if (result !== undefined) return
+    const trimmedLine = line.trim()
+    if (trimmedLine.length === 0 || trimmedLine.startsWith('#')) return
 
-    const words = line.split(' ')
+    const words = trimmedLine.split(/\s+/)
     try {
-      state.blockFunction(state, line, words)
+      state.blockFunction(state, index, trimmedLine, words)
     } catch(e) {
-      if (e instanceof Error) result = { success: false, errors: [e.message] }
+      if (e instanceof Error) result = { success: false, errors: [`Parsing error at line ${index + 1}: ${e.message}`] }
     }
   })
   return { 
@@ -70,7 +72,7 @@ export default function parse(text: string): ParsedText {
     result: result ? result : { success: true }}
 }
 
-function parseDefaultBlock(state: ParseState, line: string, words: string[]) {
+function parseDefaultBlock(state: ParseState, lineIndex: number, line: string, words: string[]) {
   const [ command ] = words
   switch (command) {
     case 'define':
@@ -106,7 +108,7 @@ function parseDefaultBlock(state: ParseState, line: string, words: string[]) {
   }
 }
 
-function parseDefineBlock(state: ParseState, line: string, words: string[]) {
+function parseDefineBlock(state: ParseState, lineIndex: number, line: string, words: string[]) {
   const [ command ] = words
   const schema = state.definitions[state.definitions.length - 1]
   switch (command) {
@@ -136,7 +138,7 @@ function parseDefineBlock(state: ParseState, line: string, words: string[]) {
       const inputReferenceName = words[3]
       if (!isCircuitName(outputReferenceName)) throw new Error('Invalid output reference name')
       if (!isCircuitName(inputReferenceName)) throw new Error('Invalid input reference name')
-
+      
       const inputName = parseCircuitName(inputReferenceName)!
       const outName = parseCircuitName(outputReferenceName)!
       const reference = {
@@ -154,7 +156,7 @@ function parseDefineBlock(state: ParseState, line: string, words: string[]) {
 }
 
 const numberArrayRegex = /\[(\s*[01]+(?:\s*[01]+\s*)*)]/
-function parseRunBlock(state: ParseState, line: string, words: string[]) {
+function parseRunBlock(state: ParseState, lineIndex: number, line: string, words: string[]) {
   const [ command ] = words
 
   switch (command) {

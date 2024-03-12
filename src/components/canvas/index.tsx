@@ -1,8 +1,6 @@
 'use client'
 
 import { Circle, Layer, Line, Rect, Stage } from "react-konva";
-import CircuitShape from "./circuits/circuit_shape";
-import { OrderNode, circuitAND, circuitBuffer, circuitInput, circuitNAND, inputCircuit as inputCircuit, outputCircuit as outputCircuit } from "@/lib/circuit-maker/circuit";
 import { BoardView } from "@/lib/circuit-maker";
 import BoardShape, { CircuitViewBoard } from "./circuits/board_shape";
 import BoardStyle, { StyleMode } from "@/utils/board_style";
@@ -80,7 +78,6 @@ export default function Canvas({ style, boardView, showTheme=false }: CanvasProp
   }
 
   useEffect(() => {
-    console.log(scale)
     window.addEventListener('resize', (event: UIEvent) => {
       setSize({ x: window.innerWidth, y: window.innerHeight })
     })
@@ -123,6 +120,7 @@ export default function Canvas({ style, boardView, showTheme=false }: CanvasProp
             )
           })
         }
+      { showTheme ? <ThemeExample theme={style.theme} x={0} y={-128} width={gridCellSize * 8} height={gridCellSize * 8} /> : null }
       </Layer>
       <Layer>
         {
@@ -134,9 +132,6 @@ export default function Canvas({ style, boardView, showTheme=false }: CanvasProp
           })
         }
       </Layer>
-      <Layer>
-        { showTheme ? <ThemeExample theme={style.theme} x={0} y={0} width={gridCellSize * 8} height={gridCellSize * 8} /> : null }
-      </Layer> 
     </Stage>
   )
 }

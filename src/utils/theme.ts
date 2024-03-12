@@ -12,6 +12,7 @@ export const black : Color = {
 
 export interface ColorTheme {
   name: string
+  author: string
   isLight: boolean
   background: string
   currentLine: string

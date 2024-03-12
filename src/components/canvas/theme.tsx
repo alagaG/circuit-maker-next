@@ -16,7 +16,7 @@ export default function ThemeExample({ theme, x=0, y=0, width=0, height=0 }: The
     >
       <Text
         height={height * 0.3}
-        text={ theme.name }
+        text={ `${theme.name} - ${theme.author}` }
         fontSize={ height * 0.3 }
         fill={ theme.foreground }
       />

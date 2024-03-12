@@ -30,7 +30,7 @@ export default function Home() {
     const result = boardManager.current.parse(textAreaReference.current)
     parsingReference.current = result
     setView(boardManager.current.getView())
-
+    
     if (!result.success) {
       console.log(result.errors)
     }

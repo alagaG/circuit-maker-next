@@ -1,8 +1,9 @@
 import { Context } from "konva/lib/Context";
 import { Shape, ShapeConfig } from "konva/lib/Shape";
-import { Circuit, LogicGate, SimpleCircuit, circuitBuffer, circuitInput, circuitNAND, circuitNOR, circuitNOT, circuitOutput, circuitXNOR, inputCircuit, logicGateAND, logicGateBuffer, logicGateNAND, logicGateNOR, logicGateNOT, logicGateOR, logicGateXNOR, logicGateXOR, outputCircuit } from "./circuit";
+import { Circuit, LogicGate, SimpleCircuit, circuitBuffer, circuitNAND, circuitNOR, circuitNOT, circuitOutput, circuitXNOR, circuitInput, logicGateAND, logicGateBuffer, logicGateNAND, logicGateNOR, logicGateNOT, logicGateOR, logicGateXNOR, logicGateXOR } from "./circuit";
 import { isNegativeLogicGateType } from "./utils";
 import { DrawScheme } from ".";
+import { Vector2d } from "konva/lib/types";
 
 const ioWidthPercent = 0.2
 const bodyWidthPercent = 0.6
@@ -18,9 +19,9 @@ interface IORect {
 
 function drawInterface(context: Context, shape: Shape<ShapeConfig>, rect: IORect, io: 'INPUT'|'OUTPUT'|'NOT_OUTPUT') {
   const { width, height } = rect
-  const ioWidth = width * ioWidthPercent
-  const bodyYMiddle = height * 0.5
-  const bodyRectXEnd = width * (bodyWidthPercent + ioWidthPercent)
+  const ioWidth = Math.ceil(width * ioWidthPercent)
+  const bodyYMiddle = Math.floor(height * 0.5)
+  const bodyRectXEnd = Math.floor(width * (bodyWidthPercent + ioWidthPercent))
 
   switch (io) {
     case 'INPUT':
@@ -29,7 +30,7 @@ function drawInterface(context: Context, shape: Shape<ShapeConfig>, rect: IORect
       break
     case 'OUTPUT':
       context.moveTo(bodyRectXEnd, bodyYMiddle)
-      context.lineTo(bodyRectXEnd + ioWidth, bodyYMiddle)
+      context.lineTo(Math.floor(bodyRectXEnd + ioWidth), bodyYMiddle)
       break
     case 'NOT_OUTPUT':
       const ioHalfWidth = ioWidth * 0.5
@@ -52,13 +53,15 @@ export function drawIO(context: Context, shape: Shape<ShapeConfig>, negate: bool
   const bodyWidth = width * bodyWidthPercent
   const bodyHeight = height
 
+  const bodyMiddleX = bodyX + bodyWidth * 0.5
+  const bodyMiddleY = bodyY + bodyHeight * 0.5
   const bodyRectXEnd = bodyX + bodyWidth
   const bodyRectYEnd = bodyY + bodyHeight
   context.beginPath()
-  context.moveTo(bodyX, bodyY)
-  context.lineTo(bodyX, bodyRectYEnd)
-  context.lineTo(bodyRectXEnd, bodyRectYEnd)
-  context.lineTo(bodyRectXEnd, bodyY)
+  context.moveTo(bodyMiddleX, bodyY)
+  context.lineTo(bodyX, bodyMiddleY)
+  context.lineTo(bodyMiddleX, bodyRectYEnd)
+  context.lineTo(bodyRectXEnd, bodyMiddleY)
   context.closePath()
   context.fillStrokeShape(shape)
 
@@ -68,15 +71,15 @@ export function drawIO(context: Context, shape: Shape<ShapeConfig>, negate: bool
 export function drawBuffer(context: Context, shape: Shape<ShapeConfig>, negate: boolean = false) {
   const { width, height } = shape.getSelfRect() 
 
-  const bodyX = width * ioWidthPercent
+  const bodyX = Math.floor(width * ioWidthPercent)
   const bodyY = 0
-  const bodyWidth = width * bodyWidthPercent
+  const bodyWidth = Math.floor(width * bodyWidthPercent)
   const bodyHeight = height
 
   context.beginPath()
   context.moveTo(bodyX, bodyY)
   context.lineTo(bodyX, bodyY + bodyHeight)
-  context.lineTo(bodyX + bodyWidth, bodyY + bodyHeight * 0.5)
+  context.lineTo(bodyX + bodyWidth, Math.floor(bodyY + bodyHeight * 0.5))
   context.closePath()
   context.fillStrokeShape(shape)
 
@@ -206,7 +209,7 @@ export function drawComplex(context: Context, shape: Shape<ShapeConfig>, scheme:
     drawInterface(context, shape, { width, height: inputHeight * (1 + i * input) }, 'INPUT')
   }
 
-  for(let i=1; i<=output; i++) {
+  for(let i=0; i<output; i++) {
     drawInterface(context, shape, { width, height: inputHeight * (1 + i * output) }, 'OUTPUT')
   }
 }
@@ -251,17 +254,19 @@ export interface ShapeRect {
   height: number
 }
 
-export function drawConnection(context: Context, rect: ShapeRect) {
-  const { x, y, width, height } = rect
+export function drawConnection(context: Context, shape: Shape<ShapeConfig>, divisions: [ number, number ][]) {
+  const width = shape.width()
+  const height = shape.height()
 
-  const middleLineX = x + width * 0.5
-  const lineRectYEnd = y + height
-
-  context.beginPath()
-  context.moveTo(x, y)
-  context.lineTo(middleLineX, y)
-  context.lineTo(middleLineX, lineRectYEnd)
-  context.lineTo(x, lineRectYEnd)
-  context.closePath()
-  context.stroke()
+  let lastPosition = [ 0, 0 ]
+  context.moveTo(0, 0)
+  divisions.concat([[ 1, 1 ]]).forEach(([ x, y ]) => {
+    const [ lastX, lastY ] = lastPosition
+    const newX = width * x
+    const newY = height * y
+    context.lineTo(newX, lastY)
+    context.lineTo(newX, newY)
+    lastPosition = [ newX, newY ]
+  })
+  context.strokeShape(shape)
 }

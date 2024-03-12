@@ -72,12 +72,12 @@ export abstract class Circuit {
 		return false 
 	}
 
-	createInput() : IOCircuit {
-		return inputCircuit.clone() as IOCircuit
+	createInput() : SimpleCircuit {
+		return circuitInput.clone() as SimpleCircuit
 	}
 
-	createOutput() : IOCircuit {
-		return outputCircuit.clone() as IOCircuit
+	createOutput() : SimpleCircuit {
+		return circuitOutput.clone() as SimpleCircuit
 	}
 
 	isReady(): boolean {
@@ -106,66 +106,6 @@ export abstract class Circuit {
 
 	abstract clone(): Circuit
 }
-
-export class IOCircuit extends Circuit {
-	private io: boolean
-
-	constructor(io: boolean|number) {
-		super()
-		this.io = Boolean(io)
-		this.processOutput = [ { executed: false, value: Boolean(0) } ]
-		this.processInput = [ () => this.processOutput[0] ]
-	}
-
-	execute(): void {
-		const { executed:inExecuted, value:inValue } = this.processInput[0]()
-		if (!inExecuted) return
-		this.processOutput[0].executed = inExecuted
-		this.processOutput[0].value = inValue
-		this.executed = inExecuted
-	}
-
-	getOrderGraph(): OrderGraph {
-    const selfNode = { id: this.id, index: this.index, type: this.getType() }
-		return { 
-      depth: 1,
-      inputs: [ selfNode ],
-      outputs: [ selfNode ]
-		}
-	}
-
-	hasSameType(other: Circuit): boolean {
-		return other instanceof IOCircuit && this.isInput() === other.isInput()
-	}
-
-  getType(): string {
-		return this.isInput() ? 'Input' : 'Output' 
-	}
-
-	getInputSize(): number {
-		return 1
-	}
-
-	getOutputSize(): number {
-		return 1
-	}
-
-	isInput(): boolean {
-		return this.io
-	}
-
-	isOutput(): boolean {
-		return !this.io
-	}
-
-	clone(): IOCircuit {
-		return new IOCircuit(this.io)
-	}
-
-}
-
-export const inputCircuit = new IOCircuit(1)
-export const outputCircuit = new IOCircuit(0)
 
 export interface LogicGateFunction {
 	(...input: boolean[]) : boolean
@@ -209,17 +149,16 @@ export class SimpleCircuit extends Circuit {
 	constructor(gate: LogicGate) {
 		super()
 		this.gate = gate
-		this.processInput = new Array<CircuitIOAccess>(gate.inputSize).fill(() => inputCircuit.clone().getOutput())
-		this.processOutput = new Array<CircuitIO>(1).fill(outputCircuit.clone().getOutput())
+		this.processInput = new Array<CircuitIOAccess>(gate.inputSize).fill(() => { return { executed: true, value: Boolean(0) } })
+		this.processOutput = new Array<CircuitIO>(1).fill({ executed: false, value: Boolean(0)})
 	}
 
 	execute(options?: ExecutionOptions) : void {
-		const { step:steps } = options || defaultOptions
-
+		const { step:steps } = options ?? defaultOptions
 		this.processOutput[0].value = this.gate.process(...this.processInput.map((access) => access().value))
 		this.executed = this.processInput.every((access) => access().executed )
 		this.processOutput[0].executed = this.executed
-		if (this.executed && steps) console.log(`${this.getType()} | (${this.processInput.map(i => Number(i().value))}) > (${this.getOutputs().map(o => Number(o.value))})`)
+		if (this.executed && steps) console.log(`${this.getType()} | (${this.processInput.map(i => i())}) > (${this.getOutputs().map(o => Number(o.value))})`)
 	}
 
 	getOrderGraph(): OrderGraph {
@@ -394,13 +333,13 @@ export class ComplexCircuit extends Circuit {
 			instancesName.map((id) : [ string, Circuit[] ] => [ id, new Array<Circuit>() ])
 		)
 		
-		for(let index=0; index < inputSize; index++) {
+		for(let idx=0; idx < inputSize; idx++) {
 			const instance = this.createInput()
-			instance.index = index
-			instance.setInput(0, this.processInput[index])
+			instance.index = idx
+			instance.setInput(0, this.processInput[idx])
 			tempInstances.push(instance)
 			
-      const inputName = inputCircuit.getType()
+      const inputName = circuitInput.getType()
 			let instanceList = (tempCircuits.has(inputName)) ? tempCircuits.get(inputName)! : new Array<Circuit>()
 			instanceList.push(instance)
 			tempCircuits.set(inputName, instanceList)
@@ -424,7 +363,7 @@ export class ComplexCircuit extends Circuit {
 			this.processOutput[idx] = instance.getOutput()
 			tempInstances.push(instance)
 			
-      const outputName = outputCircuit.getType()
+      const outputName = circuitOutput.getType()
 			let instanceList = (tempCircuits.has(outputName)) ? tempCircuits.get(outputName)! : new Array<Circuit>()
 			instanceList.push(instance)
 			tempCircuits.set(outputName, instanceList)
@@ -441,13 +380,13 @@ export class ComplexCircuit extends Circuit {
 			
 			const inputList = tempCircuits.get(inputType)
 			if (inputList === undefined) throw new Error("Input circuit not found")
-      if (inputIndex < 0 || inputIndex >= inputList.length) throw new Error("Input circuit index out of bounds")
+      if (inputIndex < 0 || inputIndex >= inputList.length) throw new Error(`Input circuit index out of bounds. Input: ${inputIndex} Limit: ${inputList.length - 1}`)
 			const inputInstance = inputList[inputIndex]
     
-    const outputList = tempCircuits.get(outputType)
-    if (outputList === undefined) throw new Error("Output circuit not found")
-    if (outputIndex < 0 || outputIndex >= outputList.length) throw new Error("Output circuit index out of bounds")
-			const outputInstance = outputList[outputIndex]
+      const outputList = tempCircuits.get(outputType)
+      if (outputList === undefined) throw new Error("Output circuit not found")
+      if (outputIndex < 0 || outputIndex >= outputList.length) throw new Error("Output circuit index out of bounds")
+        const outputInstance = outputList[outputIndex]
 
 			if (inputPort < 0 || inputPort >= inputInstance.getInputSize()) throw new Error("Input index out of bounds")
 			if (outputPort < 0 || outputPort >= outputInstance.getOutputSize()) throw new Error("Output index out of bounds")
@@ -467,22 +406,23 @@ export class ComplexCircuit extends Circuit {
 		return structure
 	}
 
-	execute(): void {
-		const inputs = this.getCircuits().get(inputCircuit.getType())!
+	execute(options?: ExecutionOptions): void {
+    const { step:steps } = options ?? defaultOptions
+		const inputs = this.getCircuits().get(circuitInput.getType())!
 		this.processInput.forEach((input, index) => { 
 			inputs[index].setInput(0, input)
 		})
 
 		const orderRoot = this.getOrderGraph().outputs
 		const executionRecursion = function(node: OrderNode, instances: Circuit[]) {
-			if (node.previous) node.previous.forEach((n) => executionRecursion(n.node, instances))
-			const instance = instances[node.id]
-			instance.execute()
+      if (node.previous) node.previous.forEach((n) => executionRecursion(n.node, instances))
+      const instance = instances[node.id]
+      instance.execute(options)
       node.gateValue = Number(instance.getOutput().value)
-		}
+      if (steps && !instance.getOutput().executed) console.log(`Missing inputs for ${instance.getIdentification()}`)
+    }
 		orderRoot.forEach((n) => executionRecursion(n, this.getInstances()))
-
-
+    
 		if (!this.isReady()) throw new Error("Circuit not fully connected")
 		const outputs = this.getCircuits().get('Output')
 		if (outputs === undefined) throw new Error("Missing OUTPUTs")
@@ -493,7 +433,7 @@ export class ComplexCircuit extends Circuit {
 	}
 
 	getOrderGraph(): OrderGraph {
-		const baseInstances = this.getInstances().filter((circuit) => circuit.hasSameType(outputCircuit))
+		const baseInstances = this.getInstances().filter((circuit) => circuitOutput.hasSameType(circuit))
 
     const graphRecursion = (current: Circuit, inputs: OrderNode[] = [], depth: number = 1) : { depth: number, inputs: OrderNode[], node: OrderNode } => {
       const references = this.getReferences().filter((reference) => {
@@ -510,13 +450,13 @@ export class ComplexCircuit extends Circuit {
           const recursion = graphRecursion(this.getCircuits().get(reference.output.type)![reference.output.index], inputs, nextDepth)
           depth = recursion.depth
           return {
-            port: reference.input.port,
+            port: reference.output.port,
             node: recursion.node
           }
         })
       }
       
-      if ( current.hasSameType(inputCircuit)) inputs.push(node)
+      if ( current.hasSameType(circuitInput)) inputs.push(node)
 			return { depth, inputs, node }
 		}
     

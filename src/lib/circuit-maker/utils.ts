@@ -61,13 +61,17 @@ export function isSimpleType(type: string): boolean {
   return defaultCircuits.some((circuit) => circuit.getType() === type)
 }
 
-const circuitNameRegex = /(\w+)#(\d)(?:-(\d))?/
+export function getSimpleTypeInput(type: string): number {
+  return defaultCircuits.find((circuit) => circuit.getType() === type)?.getGate().inputSize ?? 0
+}
+
+const circuitNameRegex = /(\w+)#(\d+)(?:-(\d+))?/
 export function matchCircuitName(name:string): RegExpMatchArray|null {
   return name.match(circuitNameRegex)
 }
 
 export function isCircuitName(name:string): boolean {
-  return name.match(name) !== null
+  return name.match(circuitNameRegex) !== null
 }
 
 export function parseCircuitName(name:string): CircuitIOCredential|undefined {

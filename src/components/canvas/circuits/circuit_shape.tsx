@@ -15,16 +15,16 @@ interface CircuitProps extends ShapeConfig {
 
 export default function CircuitShape(props: CircuitProps) {
   const { circuit, stroke, ioValue: ioValue, scheme } = props
-  const x = props.x ? props.x : 0
-  const y = props.y ? props.y : 0
-  const width = props.width ? props.width : 0
-  const height = props.height ? props.height : 0
+  const x = props.x ?? 0
+  const y = props.y ?? 0
+  const width = props.width ?? 0
+  const height = props.height ?? 0
 
   return (
     <Group>
       <Shape 
         { ...props }
-        strokeWidth={ 2.5 }
+        strokeWidth={ 2 }
         sceneFunc={ (ctx, shape) => { drawCircuit(circuit, ctx, shape, scheme) } }
       />
       {

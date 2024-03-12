@@ -1,8 +1,8 @@
 import { Color, ColorTheme } from "./theme"
 
-
 export const draculaTheme : ColorTheme = {
   name: "Dracula",
+  author: "Dacula Team",
   isLight: false,
   background: "#282A36",
   currentLine: "#44475A",
@@ -19,8 +19,31 @@ export const draculaTheme : ColorTheme = {
   ].map((color) => [ color.name, color ]))
 }
 
+export const tokyoNightTheme : ColorTheme = {
+  name: "Tokyo Night",
+  author: "Enkia",
+  isLight: false,
+  background: "#1a1b26",
+  currentLine: "#414868",
+  foreground: "#cfc9c2",
+  comment: "#565f89",
+  colors: new Map<string, Color>([
+    { name: "pink",       value: "#f7768e", isLight: false } as Color,
+    { name: "orange",     value: "#ff9e64", isLight: false } as Color,
+    { name: "yellow",     value: "#e0af68", isLight: false } as Color,
+    { name: "lime",       value: "#9ece6a", isLight: false } as Color,
+    { name: "green",      value: "#73daca", isLight: false } as Color,
+    { name: "ice",        value: "#b4f9f8", isLight: false } as Color,
+    { name: "blue",       value: "#2ac3de", isLight: false } as Color,
+    { name: "deep_blue",  value: "#7dcfff", isLight: false } as Color,
+    { name: "purple",     value: "#7aa2f7", isLight: false } as Color,
+    { name: "violet",     value: "#bb9af7", isLight: false } as Color,
+  ].map((color) => [ color.name, color ]))
+}
+
 export const ayuLightTheme : ColorTheme = {
   name: "Ayu Light",
+  author: "Ayu Team",
   isLight: true,
   background: "#FCFCFC",
   currentLine: "#5C6166",
@@ -41,6 +64,7 @@ export const ayuLightTheme : ColorTheme = {
 
 export const ayuMirageTheme : ColorTheme = {
   name: "Ayu Mirage",
+  author: "Ayu Team",
   isLight: false,
   background: "#1F2430",
   currentLine: "#171B24",
@@ -59,9 +83,27 @@ export const ayuMirageTheme : ColorTheme = {
   ].map((color) => [ color.name, color ]))
 }
 
+export const gruvBoxTheme : ColorTheme = {
+  name: "GruvBox",
+  author: "Morhetz",
+  isLight: true,
+  background: "#FBF1C7",
+  currentLine: "#3C3836",
+  foreground: "#A89984",
+  comment: "#928374",
+  colors: new Map<string, Color>([
+    { name: "red",     value: "#CC241D", isLight: false } as Color,
+    { name: "green",     value: "#98971A", isLight: false } as Color,
+    { name: "yellow",     value: "#D79921", isLight: false } as Color,
+    { name: "blue",     value: "#458588", isLight: false } as Color,
+    { name: "purple",     value: "#B16286", isLight: false } as Color,
+    { name: "aqua",     value: "#689D6A", isLight: false } as Color,
+  ].map((color) => [ color.name, color ]))
+}
+
 const themes = [
-  ayuLightTheme, ayuMirageTheme,
-  draculaTheme
+  ayuLightTheme, gruvBoxTheme,
+  draculaTheme, ayuMirageTheme, tokyoNightTheme
 ]
 
 export const lightThemes = themes.filter((theme) => theme.isLight)

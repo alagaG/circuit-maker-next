@@ -1,6 +1,6 @@
 import Board, { ComplexCircuit, OrderGraph, OrderNode as OrderNode } from "./circuit"
 import parse, { ParsedText, ParsingResult, TemporaryRunner } from "./parsing"
-import { isSimpleType } from "./utils"
+import { getSimpleTypeInput, isSimpleType } from "./utils"
 
 export interface BoardView {
   views: View[]
@@ -9,7 +9,7 @@ export interface BoardView {
 
 export interface View {
   type: string
-  custom?: DrawScheme[] 
+  schemas: Map<string, DrawScheme> 
   order: OrderGraph
 }
 
@@ -47,29 +47,34 @@ export default class BoardManager {
   getView(): BoardView {
     if (!this.parsedText.result.success) return { views: [], runners: [] }
     const { views: visible, runners } = this.parsedText
-
+    console.log(runners)
     let tempRunners : RunnerResult[] = []
     runners.forEach((runner) => {
       const { type, inputs } = runner
-      tempRunners = this.board.runMultiple(type, inputs)
-        .map((result, index) => { return { type, input: inputs[index], output:result } })
+      try {
+        tempRunners.push(...this.board.runMultiple(type, inputs)
+          .map((result, index) => { return { type, input: inputs[index], output:result } }))
+      } catch (e) {
+        if (e instanceof Error) console.log(e.message)
+      }
     })
 
     const tempViews = visible
       .map((circuitType) => { 
         const schema = this.board.getCircuitSchema(circuitType) 
-        const custom = Array.from(new Set(schema.instances.filter((instance) => !isSimpleType(instance))))
-          .map((subCircuit): DrawScheme => {
+        const schemas = new Map<string, DrawScheme>(schema.instances
+          .filter((subCircuit) => !isSimpleType(subCircuit))
+          .map((subCircuit) => {
             const subSchema = this.board.getCircuitSchema(subCircuit)
-            return {
+            return [ subCircuit, {
               type: subCircuit,
               input: subSchema.inputSize,
               output: subSchema.outputSize
-            }
-          })
+            } ]
+          }))
         return { 
           type: circuitType, 
-          custom,
+          schemas,
           order: this.board.getOrderGraph(circuitType)
         } 
       })
